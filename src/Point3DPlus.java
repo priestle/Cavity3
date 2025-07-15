@@ -18,6 +18,16 @@ public class Point3DPlus {
         this.element = anAtom.getElement();
     }
 
+    // Constructor
+    public Point3DPlus(double x, double y, double z, double radius, double charge, String element) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.radius = radius;
+        this.charge = charge;
+        this.element = element;
+    }
+
     // Gets
     public double getX()       { return this.x; }
     public double getY()       { return this.y; }

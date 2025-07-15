@@ -8,9 +8,9 @@ public class Main {
         // Globals : will need to be moved into a config file eventually
         String pdbFileName             = "C:/tmp/rg108charged.pdb";
         String ligandName              = "RGX";
-        String spherePointsFileName    = "C:/tmp/icosphere2.csv";
-        String tclOutputFileName       = "C:/tmp/test.tcl";
-        Double cutoff                  = 4.0;
+        String spherePointsFileName    = "C:/tmp/subdiv_2_triangles.txt";
+        String tclOutputFileName       = "C:/tmp/test1.tcl";
+        Double cutoff                  = 5.0;
 
         // DNF below here when working
 
@@ -30,11 +30,6 @@ public class Main {
             System.exit(1);
         }
 
-        // DEBUG
-        for (int i = 0; i < 10; i++) {
-            System.out.println(receptorAtoms.get(i));
-        }
-
         // Assign VdW radii to receptor atoms
         for (int i = 0; i < receptorAtoms.size(); i++) {
             double radius = VdW.getRadius(receptorAtoms.get(i).getName());
@@ -49,7 +44,20 @@ public class Main {
         System.out.println("There are " + cavityPoints.size() + " cavity points.");
 
         // Generate cavity triangles - expand each origin to an icosahedral shell
-        ArrayList<Triangles> cavityTriangles = new ArrayList<Triangles>();
+        ArrayList<Triangle> cavityTriangles = TriangleMethods.makeTriangles(cavityPoints, spherePointsFileName);
+        System.out.println("There are " + cavityTriangles.size() + " total triangles representing the cavity.");
+
+        // Trim any triangles that are not completely visible to the ligand
+        ArrayList<Triangle> visibleTriangles = TriangleMethods.selectVisibleToLigand(ligandAtoms, cavityTriangles, cavityAtoms);
+        System.out.println("There are " + visibleTriangles.size() + " triangles visible to the ligand.");
+
+        // Recolor triangles based on a potential calculation
+        ArrayList<PDBAtom> potentialAtoms = PDBFileMethods.getCavityAtoms(cavityAtoms,receptorAtoms,12.0);
+        System.out.println("There are " + potentialAtoms.size() + " atoms that interact with the cavity.");
+        //ArrayList<Triangle> rechargedTriangles = TriangleMethods.recalculateCharge(visibleTriangles, potentialAtoms);
+
+        // Output the triangles in a form that VMD can process as a tcl script
+        TriangleMethods.makeTCLFileOfTriangles(visibleTriangles, tclOutputFileName);
 
         // Done
         System.out.println("DONE.");
