@@ -125,127 +125,113 @@ public class TriangleMethods {
 
         ArrayList<Triangle> goodTriangles = new ArrayList<>();
 
+        // What makes a good triangle? There are no cavity atoms between it and at least one ligand atom
+        for (int i = 0 ; i < cavityTriangles.size(); i++) {
+            cavityTriangles.get(i).setElement("N");
+        }
+
         for (int i = 0; i < cavityTriangles.size(); i++) {
-
-            // We keep the triangle if any ray from a ligand nucleus to that triangle does not pass through any other
-            // triangle. We don't self-test the triangle in question
-
-            if (i % 1000 == 0) { System.out.println(i + " / " + cavityTriangles.size()); }
-
-            Triangle test = cavityTriangles.get(i);
-
-            boolean foundGoodRay = false;
-
-            double centroidX = (test.getAx() + test.getBx() + test.getCx()) / 3;
-            double centroidY = (test.getAy() + test.getBy() + test.getCy()) / 3;
-            double centroidZ = (test.getAz() + test.getBz() + test.getCz()) / 3;
-
-            Point3DPlus startRay = new Point3DPlus(centroidX, centroidY, centroidZ, 0.00, 0.00, "X");
-outer:
+            Point3DPlus rayStart = getCentroid(cavityTriangles.get(i));
             for (int j = 0; j < ligandAtoms.size(); j++) {
-
-                double ligX = ligandAtoms.get(j).getX();
-                double ligY = ligandAtoms.get(j).getY();
-                double ligZ = ligandAtoms.get(j).getZ();
-                Point3DPlus endRay = new Point3DPlus(ligX, ligY, ligZ, 0.00, 0.00, "X");
-
+                boolean blocked = false;
+                Point3DPlus rayEnd = new Point3DPlus(ligandAtoms.get(j).getX(),
+                                                     ligandAtoms.get(j).getY(),
+                                                     ligandAtoms.get(j).getZ(),
+                                                     0.00, 0.00, "X");
                 for (int k = 0; k < cavityTriangles.size(); k++) {
-                    if ( i != k) {  // we're not going to self test the same triangle
-
-                        foundGoodRay = triangleIntersectsRay(startRay, endRay, cavityTriangles.get(k));
-
-                        if (foundGoodRay) {
-                            goodTriangles.add(test);
-                            break outer;
+                    if (k != i) {
+                        Triangle test = cavityTriangles.get(k);
+                        if (rayIntersectsTriangle(rayStart,rayEnd,test)) {
+                            blocked = true;
                         }
                     }
                 }
             }
+
         }
+
+
+        System.out.println("We started with " + cavityTriangles.size() + " triangles.");
+        System.out.println("We ended up with " + goodTriangles.size() + " triangles.");
         return goodTriangles;
     }
 
-    /**
-     * Checks whether the segment from rayOrigin to rayEnd intersects the given triangle (triangle ABC)
-     * using the Möller–Trumbore algorithm. Returns true if intersection occurs strictly between origin and end.
-     */
-    public static boolean triangleIntersectsRay(Point3DPlus rayOrigin, Point3DPlus rayEnd, Triangle tri) {
-        final double EPS = 1e-8;
+    private static Point3DPlus getCentroid (Triangle T) {
 
-        // Direction vector D = rayEnd - rayOrigin
-        double dx = rayEnd.getX() - rayOrigin.getX();
-        double dy = rayEnd.getY() - rayOrigin.getY();
-        double dz = rayEnd.getZ() - rayOrigin.getZ();
+        double cx = (T.getAx() + T.getBx() + T.getCx()) / 3;
+        double cy = (T.getAy() + T.getBy() + T.getCy()) / 3;
+        double cz = (T.getAz() + T.getBz() + T.getCz()) / 3;
 
-        // Triangle vertices
-        double v0x = tri.getAx(), v0y = tri.getAy(), v0z = tri.getAz();
-        double v1x = tri.getBx(), v1y = tri.getBy(), v1z = tri.getBz();
-        double v2x = tri.getCx(), v2y = tri.getCy(), v2z = tri.getCz();
+        Point3DPlus centroid = new Point3DPlus(cx, cy, cz, 0.00, 0.00, "X");
 
-        // Edges of the triangle
-        double e1x = v1x - v0x, e1y = v1y - v0y, e1z = v1z - v0z;
-        double e2x = v2x - v0x, e2y = v2y - v0y, e2z = v2z - v0z;
+        return centroid;
+    }
 
-        // P-vector = D × e2
-        double px = dy * e2z - dz * e2y;
-        double py = dz * e2x - dx * e2z;
-        double pz = dx * e2y - dy * e2x;
+    public static boolean rayIntersectsTriangle(Point3DPlus S, Point3DPlus E, Triangle T) {
+        final double EPSILON = 1e-8;
 
-        // Determinant
-        double det = e1x * px + e1y * py + e1z * pz;
-        if (Math.abs(det) < EPS) return false; // Parallel or nearly parallel
+        double Sx = S.getX();
+        double Sy = S.getY();
+        double Sz = S.getZ();
+        double Ex = E.getX();
+        double Ey = E.getY();
+        double Ez = E.getZ();
+        double Ax = T.getAx();
+        double Ay = T.getAy();
+        double Az = T.getAz();
+        double Bx = T.getBx();
+        double By = T.getBy();
+        double Bz = T.getBz();
+        double Cx = T.getCx();
+        double Cy = T.getCy();
+        double Cz = T.getCz();
 
-        double invDet = 1.0 / det;
+        // Direction vector of the ray
+        double dx = Ex - Sx;
+        double dy = Ey - Sy;
+        double dz = Ez - Sz;
 
-        // Vector from v0 to ray origin
-        double t0x = rayOrigin.getX() - v0x;
-        double t0y = rayOrigin.getY() - v0y;
-        double t0z = rayOrigin.getZ() - v0z;
+        // Triangle edges
+        double[] edge1 = {Bx - Ax, By - Ay, Bz - Az};
+        double[] edge2 = {Cx - Ax, Cy - Ay, Cz - Az};
 
-        // Calculate u parameter
-        double u = (t0x * px + t0y * py + t0z * pz) * invDet;
+        // Vector h = D x edge2
+        double[] h = {
+                dy * edge2[2] - dz * edge2[1],
+                dz * edge2[0] - dx * edge2[2],
+                dx * edge2[1] - dy * edge2[0]
+        };
+
+        // a = edge1 · h
+        double a = edge1[0]*h[0] + edge1[1]*h[1] + edge1[2]*h[2];
+        if (Math.abs(a) < EPSILON) return false; // Ray is parallel to triangle
+
+        double f = 1.0 / a;
+
+        // Vector s = S - A
+        double[] s = {Sx - Ax, Sy - Ay, Sz - Az};
+
+        // u = f * (s · h)
+        double u = f * (s[0]*h[0] + s[1]*h[1] + s[2]*h[2]);
         if (u < 0.0 || u > 1.0) return false;
 
-        // Q-vector = t0 × e1
-        double qx = t0y * e1z - t0z * e1y;
-        double qy = t0z * e1x - t0x * e1z;
-        double qz = t0x * e1y - t0y * e1x;
+        // q = s x edge1
+        double[] q = {
+                s[1]*edge1[2] - s[2]*edge1[1],
+                s[2]*edge1[0] - s[0]*edge1[2],
+                s[0]*edge1[1] - s[1]*edge1[0]
+        };
 
-        // Calculate v parameter
-        double v = (dx * qx + dy * qy + dz * qz) * invDet;
+        // v = f * (D · q)
+        double v = f * (dx*q[0] + dy*q[1] + dz*q[2]);
         if (v < 0.0 || u + v > 1.0) return false;
 
-        // Calculate t (intersection point along the ray)
-        double t = (e2x * qx + e2y * qy + e2z * qz) * invDet;
+        // t = f * (edge2 · q)
+        double t = f * (edge2[0]*q[0] + edge2[1]*q[1] + edge2[2]*q[2]);
 
-        // Only count intersections strictly within the segment (not at endpoints)
-        return (t > EPS && t < 1.0 - EPS);
+        // Check if the intersection is along the ray segment
+        return t >= 0.0 && t <= 1.0;
     }
 
 
-    // ============================================================================
-    public static ArrayList<Triangle> recalculateCharge(ArrayList<Triangle> triangles, ArrayList<PDBAtom> atoms) {
-        ArrayList<Triangle> chargedTriangles = new ArrayList<>();
-
-        for (Triangle T : triangles) {
-            double potential = 0.0;
-
-            double cx = (T.getAx() + T.getBx() + T.getCx()) / 3;
-            double cy = (T.getAy() + T.getBy() + T.getCy()) / 3;
-            double cz = (T.getAz() + T.getBz() + T.getCz()) / 3;
-
-            for (PDBAtom atom : atoms) {
-                double dx = cx - atom.getX();
-                double dy = cy - atom.getY();
-                double dz = cz - atom.getZ();
-                double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                potential += (1.0 / (4 * Math.PI)) * (atom.getCharge() / dist);
-            }
-
-            T.setCharge(potential);
-            chargedTriangles.add(T);
-        }
-
-        return chargedTriangles;
-    }
 }

@@ -44,6 +44,7 @@ public class Triangle {
     public void setCharge(double charge) {
         this.charge = charge;
     }
+    public void setElement(String element) { this.element = element; }
 
 
     // Methods
