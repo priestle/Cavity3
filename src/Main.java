@@ -8,12 +8,12 @@ public class Main {
         // Globals : will need to be moved into a config file eventually
         String pdbFileName             = "C:/tmp/rg108charged.pdb";
         String ligandName              = "RGX";
-        String spherePointsFileName    = "C:/tmp/subdiv_0_triangles.txt";
+        String spherePointsFileName    = "C:/tmp/subdiv_3_triangles.txt";
         String tclOutputFileName       = "C:/tmp/test1.tcl";
         String ligandAtomFileName      = "C:/tmp/ligand.csv";
         String triangleFilename        = "C:/tmp/triangle.csv";
         String trianglePdbName         = "C:/tmp/trianglesAsPdb.pdb";
-        Double cutoff                  = 5.0;
+        Double cutoff                  = 3.0;
 
         // DNF below here when working
 
@@ -55,6 +55,9 @@ public class Main {
         DumpMethods.dumpTriangles(cavityTriangles, triangleFilename);
         DumpMethods.dumpTrianglesAsPdb(cavityTriangles, trianglePdbName);
 
+        // Run some tests... can remove later
+        Tests.colorTest();
+
         // Trim any triangles that are not completely visible to the ligand
         ArrayList<Triangle> visibleTriangles = TriangleMethods.selectVisibleToLigand(ligandAtoms, cavityTriangles);
         System.out.println("There are " + visibleTriangles.size() + " triangles visible to the ligand.");
@@ -62,6 +65,7 @@ public class Main {
         // Recolor triangles based on a potential calculation
         ArrayList<PDBAtom> potentialAtoms = PDBFileMethods.getCavityAtoms(cavityAtoms,receptorAtoms,12.0);
         System.out.println("There are " + potentialAtoms.size() + " atoms that interact with the cavity.");
+
         //ArrayList<Triangle> rechargedTriangles = TriangleMethods.recalculateCharge(visibleTriangles, potentialAtoms);
 
         // Output the triangles in a form that VMD can process as a tcl script

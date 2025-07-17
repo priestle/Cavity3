@@ -88,7 +88,7 @@ public class TriangleMethods {
         tclLines.add("mol new");
         tclLines.add("draw material Transparent");
 
-        for (int i = -256; i < 256; i++) {
+        for (int i = -256; i < 257; i++) {
             RGB rgb = ColorMethods.valueToRGB(i, 256, -256);
             tclLines.add("color change rgb " + (i + 296) + " " + rgb.getR() + " " + rgb.getG() + " " + rgb.getB());
         }
