@@ -120,8 +120,7 @@ public class TriangleMethods {
     // ============================================================================
     public static ArrayList<Triangle> selectVisibleToLigand(
             ArrayList<PDBAtom> ligandAtoms,
-            ArrayList<Triangle> cavityTriangles,
-            ArrayList<PDBAtom> cavityAtoms) {
+            ArrayList<Triangle> cavityTriangles) {
 
         ArrayList<Triangle> goodTriangles = new ArrayList<>();
 
