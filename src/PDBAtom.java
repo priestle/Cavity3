@@ -58,6 +58,10 @@ public class PDBAtom {
         this.element = element;
     }
 
+    public void setSerial(int serial) { this.serial = serial; }
+    public void setCharge(double charge) { this.charge = charge; }
+    public void setBFactor(double bFactor) { this.bFactor = bFactor; }
+
     public void setX(double x) { this.x = x; }
     public void setY(double y) { this.y = y; }
     public void setZ(double z) { this.z = z; }

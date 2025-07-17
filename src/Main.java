@@ -8,11 +8,12 @@ public class Main {
         // Globals : will need to be moved into a config file eventually
         String pdbFileName             = "C:/tmp/rg108charged.pdb";
         String ligandName              = "RGX";
-        String spherePointsFileName    = "C:/tmp/subdiv_2_triangles.txt";
+        String spherePointsFileName    = "C:/tmp/subdiv_0_triangles.txt";
         String tclOutputFileName       = "C:/tmp/test1.tcl";
         String ligandAtomFileName      = "C:/tmp/ligand.csv";
         String triangleFilename        = "C:/tmp/triangle.csv";
-        Double cutoff                  = 3.0;
+        String trianglePdbName         = "C:/tmp/trianglesAsPdb.pdb";
+        Double cutoff                  = 5.0;
 
         // DNF below here when working
 
@@ -52,6 +53,7 @@ public class Main {
         // So we're going to need to parallelize this... output some intermediate files here...
         DumpMethods.dumpAtoms(ligandAtoms, ligandAtomFileName);
         DumpMethods.dumpTriangles(cavityTriangles, triangleFilename);
+        DumpMethods.dumpTrianglesAsPdb(cavityTriangles, trianglePdbName);
 
         // Trim any triangles that are not completely visible to the ligand
         ArrayList<Triangle> visibleTriangles = TriangleMethods.selectVisibleToLigand(ligandAtoms, cavityTriangles);

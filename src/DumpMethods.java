@@ -1,3 +1,4 @@
+import java.io.File;
 import java.io.FileWriter;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -47,7 +48,7 @@ public class DumpMethods {
         try (FileWriter outputF = new FileWriter(filename)) {
             for (int i = 0; i < triangles.size(); i++) {
                 Triangle T = triangles.get(i);
-                String aS = T.getAx() + ",";
+                String aS = "";
                 aS += T.getAx() + ",";
                 aS += T.getAy() + ",";
                 aS += T.getAz() + ",";
@@ -68,5 +69,35 @@ public class DumpMethods {
         catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static void dumpTrianglesAsPdb(ArrayList<Triangle> triangles, String filename) {
+
+        try (FileWriter outputF = new FileWriter(filename)) {
+            for (int i = 0; i < triangles.size(); i++) {
+
+                PDBAtom fakeAtom = new PDBAtom("ATOM      1 N1   RGX    1      57.279  59.263  90.609  1.00  0.00          N   -0.347");
+                Triangle T = triangles.get(i);
+
+                double cx = ( T.getAx() + T.getBx() + T.getCx()) / 3;
+                double cy = ( T.getAy() + T.getBy() + T.getCy()) / 3;
+                double cz = ( T.getAz() + T.getBz() + T.getCz()) / 3;
+
+                fakeAtom.setX(cx);
+                fakeAtom.setY(cy);
+                fakeAtom.setZ(cz);
+                fakeAtom.setSerial(i);
+                fakeAtom.setElement(T.getElement());
+                fakeAtom.setCharge(T.getCharge());
+                fakeAtom.setBFactor(T.getCharge());
+
+                String aS = fakeAtom.toPDBLine();
+                outputF.write(aS + "\n");
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 }

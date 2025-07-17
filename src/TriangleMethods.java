@@ -86,7 +86,7 @@ public class TriangleMethods {
 
         ArrayList<String> tclLines = new ArrayList<>();
         tclLines.add("mol new");
-        tclLines.add("draw material Opaque");
+        tclLines.add("draw material Transparent");
 
         for (int i = -256; i < 256; i++) {
             RGB rgb = ColorMethods.valueToRGB(i, 256, -256);
@@ -128,12 +128,6 @@ public class TriangleMethods {
         for (int i = 0 ; i < cavityTriangles.size(); i++) {
             cavityTriangles.get(i).setElement("N");
         }
-
-        // Turning this around
-        // for each ligand atom
-        //    for each cavity triangle
-        //      if ligand can see the triangle... no blockers
-        //         set triangle element to Y
 
         for (int i = 0; i < ligandAtoms.size(); i++) {
             for (int j = 0; j < cavityTriangles.size(); j++) {
@@ -182,7 +176,7 @@ public class TriangleMethods {
     }
 
     public static boolean rayIntersectsTriangle(Point3DPlus S, Point3DPlus E, Triangle T) {
-        final double EPSILON = 1e-8;
+        final double EPSILON = 1e-10;
 
         double Sx = S.getX();
         double Sy = S.getY();
