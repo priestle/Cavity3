@@ -130,24 +130,39 @@ public class TriangleMethods {
             cavityTriangles.get(i).setElement("N");
         }
 
-        for (int i = 0; i < cavityTriangles.size(); i++) {
-            Point3DPlus rayStart = getCentroid(cavityTriangles.get(i));
-            for (int j = 0; j < ligandAtoms.size(); j++) {
-                boolean blocked = false;
-                Point3DPlus rayEnd = new Point3DPlus(ligandAtoms.get(j).getX(),
-                                                     ligandAtoms.get(j).getY(),
-                                                     ligandAtoms.get(j).getZ(),
-                                                     0.00, 0.00, "X");
+        // Turning this around
+        // for each ligand atom
+        //    for each cavity triangle
+        //      if ligand can see the triangle... no blockers
+        //         set triangle element to Y
+
+        for (int i = 0; i < ligandAtoms.size(); i++) {
+            for (int j = 0; j < cavityTriangles.size(); j++) {
+                System.out.print("\r Checking ligand " + i + " against triangle " + j);
+                boolean isBlocked = false;
                 for (int k = 0; k < cavityTriangles.size(); k++) {
-                    if (k != i) {
-                        Triangle test = cavityTriangles.get(k);
-                        if (rayIntersectsTriangle(rayStart,rayEnd,test)) {
-                            blocked = true;
+                    if (k != j) {
+                        Point3DPlus rayEnd = getCentroid(cavityTriangles.get(j));
+                        Point3DPlus rayStart = new Point3DPlus(ligandAtoms.get(i).getX(),
+                                                               ligandAtoms.get(i).getY(),
+                                                               ligandAtoms.get(i).getZ(),
+                                                               0.00, 0.00, "X");
+                        if (rayIntersectsTriangle(rayStart, rayEnd, cavityTriangles.get(k))) {
+                            isBlocked = true;
                         }
                     }
                 }
+                if (!isBlocked) {
+                    cavityTriangles.get(j).setElement("Y");
+                }
             }
+        }
+        System.out.println("");
 
+        for (int i = 0; i < cavityTriangles.size(); i++) {
+            if (cavityTriangles.get(i).getElement().equals("Y")) {
+                goodTriangles.add(cavityTriangles.get(i));
+            }
         }
 
 

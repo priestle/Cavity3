@@ -8,9 +8,9 @@ public class Main {
         // Globals : will need to be moved into a config file eventually
         String pdbFileName             = "C:/tmp/rg108charged.pdb";
         String ligandName              = "RGX";
-        String spherePointsFileName    = "C:/tmp/subdiv_2_triangles.txt";
+        String spherePointsFileName    = "C:/tmp/subdiv_3_triangles.txt";
         String tclOutputFileName       = "C:/tmp/test1.tcl";
-        Double cutoff                  = 5.0;
+        Double cutoff                  = 3.0;
 
         // DNF below here when working
 
