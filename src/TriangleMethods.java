@@ -1,7 +1,11 @@
 import java.io.FileWriter;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class TriangleMethods {
 
@@ -164,6 +168,124 @@ public class TriangleMethods {
         return goodTriangles;
     }
 
+    // ============================================================================
+    public static ArrayList<Triangle> selectVisibleToLigandParallel(
+            ArrayList<PDBAtom> ligandAtoms,
+            ArrayList<Triangle> cavityTriangles) {
+
+        // Initialize all triangles as not visible
+        cavityTriangles.forEach(triangle -> triangle.setElement("N"));
+        AtomicInteger tCount = new AtomicInteger();
+
+        // Parallel processing over triangles
+        IntStream.range(0, cavityTriangles.size()).parallel().forEach(j -> {
+            Triangle triangle = cavityTriangles.get(j);
+            tCount.getAndIncrement();
+            System.out.printf("\r%.1f%%", tCount.get() * 100.0 / cavityTriangles.size());
+            Point3DPlus rayEnd = getCentroid(triangle);
+
+            // Check each ligand atom
+            for (PDBAtom ligandAtom : ligandAtoms) {
+                Point3DPlus rayStart = new Point3DPlus(ligandAtom.getX(), ligandAtom.getY(), ligandAtom.getZ(), 0.0, 0.0, "X");
+                boolean isBlocked = false;
+
+                // Check intersection with other triangles
+                for (int k = 0; k < cavityTriangles.size(); k++) {
+                    if (k != j) {
+                        Triangle otherTriangle = cavityTriangles.get(k);
+                        if (rayIntersectsTriangle(rayStart, rayEnd, otherTriangle)) {
+                            isBlocked = true;
+                            break;
+                        }
+                    }
+                }
+
+                // If visible from at least one ligand atom, mark as visible and break
+                if (!isBlocked) {
+                    synchronized (triangle) {
+                        triangle.setElement("Y");
+                    }
+                    break;
+                }
+            }
+        });
+
+        // Collect all visible triangles
+        List<Triangle> goodTriangles = cavityTriangles.stream()
+                .filter(tri -> tri.getElement().equals("Y"))
+                .collect(Collectors.toList());
+
+        System.out.println("We started with " + cavityTriangles.size() + " triangles.");
+        System.out.println("We ended up with " + goodTriangles.size() + " triangles.");
+
+        return new ArrayList<>(goodTriangles);
+    }
+
+    // ============================================================================
+    public static ArrayList<Triangle> selectVisibleToLigandParallelT(
+            ArrayList<PDBAtom> ligandAtoms,
+            ArrayList<Triangle> cavityTriangles) {
+
+        // Initialize all triangles as not visible
+        cavityTriangles.forEach(triangle -> triangle.setElement("N"));
+        AtomicInteger tCount = new AtomicInteger();
+
+        // Parallel processing over triangles
+        IntStream.range(0, cavityTriangles.size()).parallel().forEach(j -> {
+            Triangle triangle = cavityTriangles.get(j);
+            tCount.getAndIncrement();
+            System.out.printf("\r%.1f%%", tCount.get() * 100.0 / cavityTriangles.size());
+
+            Point3DPlus[] vertices = {
+                    new Point3DPlus(triangle.getAx(), triangle.getAy(), triangle.getAz(), 0.0, 0.0, "X"),
+                    new Point3DPlus(triangle.getBx(), triangle.getBy(), triangle.getBz(), 0.0, 0.0, "X"),
+                    new Point3DPlus(triangle.getCx(), triangle.getCy(), triangle.getCz(), 0.0, 0.0, "X")
+            };
+
+            boolean isVisible = false;
+
+            for (Point3DPlus rayEnd : vertices) {
+                for (PDBAtom ligandAtom : ligandAtoms) {
+                    Point3DPlus rayStart = new Point3DPlus(
+                            ligandAtom.getX(), ligandAtom.getY(), ligandAtom.getZ(), 0.0, 0.0, "X");
+
+                    boolean isBlocked = false;
+
+                    for (int k = 0; k < cavityTriangles.size(); k++) {
+                        if (k != j) {
+                            Triangle otherTriangle = cavityTriangles.get(k);
+                            if (rayIntersectsTriangle(rayStart, rayEnd, otherTriangle)) {
+                                isBlocked = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!isBlocked) {
+                        synchronized (triangle) {
+                            triangle.setElement("Y");
+                        }
+                        isVisible = true;
+                        break; // stop checking more ligand atoms for this vertex
+                    }
+                }
+
+                if (isVisible) break; // stop checking more vertices
+            }
+        });
+
+        // Collect all visible triangles
+        List<Triangle> goodTriangles = cavityTriangles.stream()
+                .filter(tri -> tri.getElement().equals("Y"))
+                .collect(Collectors.toList());
+
+        System.out.println("We started with " + cavityTriangles.size() + " triangles.");
+        System.out.println("We ended up with " + goodTriangles.size() + " triangles.");
+
+        return new ArrayList<>(goodTriangles);
+    }
+
+    // ============================================================================
     private static Point3DPlus getCentroid (Triangle T) {
 
         double cx = (T.getAx() + T.getBx() + T.getCx()) / 3;
@@ -175,6 +297,7 @@ public class TriangleMethods {
         return centroid;
     }
 
+    // ============================================================================
     public static boolean rayIntersectsTriangle(Point3DPlus S, Point3DPlus E, Triangle T) {
         final double EPSILON = 1e-10;
 

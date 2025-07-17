@@ -8,12 +8,13 @@ public class Main {
         // Globals : will need to be moved into a config file eventually
         String pdbFileName             = "C:/tmp/rg108charged.pdb";
         String ligandName              = "RGX";
-        String spherePointsFileName    = "C:/tmp/subdiv_3_triangles.txt";
+        String spherePointsFileName    = "C:/tmp/subdiv_2_triangles.txt";
         String tclOutputFileName       = "C:/tmp/test1.tcl";
         String ligandAtomFileName      = "C:/tmp/ligand.csv";
         String triangleFilename        = "C:/tmp/triangle.csv";
         String trianglePdbName         = "C:/tmp/trianglesAsPdb.pdb";
-        Double cutoff                  = 3.0;
+        Double cutoff                  = 4.0;
+        Boolean parallel               = true;
 
         // DNF below here when working
 
@@ -59,7 +60,15 @@ public class Main {
         Tests.colorTest();
 
         // Trim any triangles that are not completely visible to the ligand
-        ArrayList<Triangle> visibleTriangles = TriangleMethods.selectVisibleToLigand(ligandAtoms, cavityTriangles);
+        ArrayList<Triangle> visibleTriangles = new ArrayList<>();
+        if (parallel) {
+            visibleTriangles = TriangleMethods.selectVisibleToLigandParallelT(ligandAtoms, cavityTriangles);
+
+        } else {
+            visibleTriangles = TriangleMethods.selectVisibleToLigand(ligandAtoms, cavityTriangles);
+        }
+
+
         System.out.println("There are " + visibleTriangles.size() + " triangles visible to the ligand.");
 
         // Recolor triangles based on a potential calculation

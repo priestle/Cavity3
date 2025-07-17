@@ -40,6 +40,20 @@ public class Triangle {
     public double getCharge() { return this.charge; }
     public String getElement() { return this.element; }
 
+    public double getCentroidCoord(int axis) {
+        double x = (getAx() + getBx() + getCx()) / 3.0;
+        double y = (getAy() + getBy() + getCy()) / 3.0;
+        double z = (getAz() + getBz() + getCz()) / 3.0;
+
+        switch (axis) {
+            case 0: return x;
+            case 1: return y;
+            case 2: return z;
+            default: throw new IllegalArgumentException("Axis must be 0 (x), 1 (y), or 2 (z)");
+        }
+    }
+
+
     // Sets
     public void setCharge(double charge) {
         this.charge = charge;
