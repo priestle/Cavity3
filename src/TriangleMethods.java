@@ -77,6 +77,64 @@ public class TriangleMethods {
 
     // ============================================================================
     public static void makeTCLFileOfTriangles(ArrayList<Triangle> triangles, String tclFileName) {
+        // Step 1–2: Extract and sort charges
+        List<Double> charges = triangles.stream()
+                .map(Triangle::getCharge)
+                .sorted()
+                .collect(Collectors.toList());
+
+        int n = charges.size();
+        if (n < 10) {
+            System.err.println("Too few triangles for percentile clamping — using raw min/max");
+        }
+
+        // Step 3: Get clamped percentile range
+        double min = charges.get((int) (0.01 * n));
+        double max = charges.get((int) (0.99 * n));
+
+        System.out.println("Clamped 1% min = " + min);
+        System.out.println("Clamped 99% max = " + max);
+
+        ArrayList<String> tclLines = new ArrayList<>();
+        tclLines.add("mol new");
+        tclLines.add("draw material Opaque");
+
+        for (int i = -256; i < 257; i++) {
+            RGB rgb = ColorMethods.valueToRGB(i, 256, -256);
+            tclLines.add("color change rgb " + (i + 296) + " " + rgb.getR() + " " + rgb.getG() + " " + rgb.getB());
+        }
+
+        for (Triangle T : triangles) {
+            double charge = T.getCharge();
+
+            // Step 4: Clamp
+            charge = Math.max(min, Math.min(max, charge));
+
+            // Step 5: Map to color scale
+            int color = 296;
+            if (charge > 0) {
+                color = (int) Math.round(295 + 256 * charge / max);
+            } else if (charge < 0) {
+                color = (int) Math.round(-256.0 * charge / min + 296);
+            }
+
+            tclLines.add("draw color " + color);
+            tclLines.add("draw triangle {" + T.getAx() + " " + T.getAy() + " " + T.getAz() + "} {" +
+                    T.getBx() + " " + T.getBy() + " " + T.getBz() + "} {" +
+                    T.getCx() + " " + T.getCy() + " " + T.getCz() + "}");
+        }
+
+        try (FileWriter outputF = new FileWriter(tclFileName)) {
+            for (String line : tclLines) {
+                outputF.write(line + "\n");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /* This works but the contrast is shite
+    public static void makeTCLFileOfTriangles(ArrayList<Triangle> triangles, String tclFileName) {
         double min = 1e9;
         double max = -1e9;
 
@@ -120,6 +178,8 @@ public class TriangleMethods {
             e.printStackTrace();
         }
     }
+
+     */
 
     // ============================================================================
     public static ArrayList<Triangle> selectVisibleToLigand(
@@ -224,7 +284,7 @@ public class TriangleMethods {
     // ============================================================================
     public static ArrayList<Triangle> selectVisibleToLigandParallelT(
             ArrayList<PDBAtom> ligandAtoms,
-            ArrayList<Triangle> cavityTriangles) {
+            ArrayList<Triangle> cavityTriangles) throws InterruptedException {
 
         // Initialize all triangles as not visible
         cavityTriangles.forEach(triangle -> triangle.setElement("N"));
@@ -279,6 +339,8 @@ public class TriangleMethods {
                 .filter(tri -> tri.getElement().equals("Y"))
                 .collect(Collectors.toList());
 
+
+        System.out.flush();
         System.out.println("We started with " + cavityTriangles.size() + " triangles.");
         System.out.println("We ended up with " + goodTriangles.size() + " triangles.");
 
@@ -364,5 +426,178 @@ public class TriangleMethods {
         return t >= 0.0 && t <= 1.0;
     }
 
+    // ============================================================================
+    public static ArrayList<Triangle> recalculateCharge(ArrayList<Triangle> triangles, ArrayList<PDBAtom> atoms) {
+
+        // Calculate the potential at the centroid of each triangle
+        System.out.println("Recalculating potentials...");
+        for (int i = 0; i < triangles.size(); i++) {
+            double potential = 0.00;
+            Point3DPlus centroid = getCentroid(triangles.get(i));
+            for (int j = 0; j < atoms.size(); j++) {
+                double dx = centroid.getX() - atoms.get(j).getX();
+                double dy = centroid.getY() - atoms.get(j).getY();
+                double dz = centroid.getZ() - atoms.get(j).getZ();
+                double distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                double p = 1 / (4 * Math.PI) * atoms.get(j).getCharge() / distance;
+                potential += p;
+            }
+            triangles.get(i).setCharge(potential);
+        }
+
+        return triangles;
+    }
+
+    // ============================================================================
+    public static void makeTCLFileOfMesh(ArrayList<Triangle> triangles,
+                                         String filename,
+                                         ArrayList<PDBAtom> atoms) {
+
+        // We're going to make a pdb file, where each triangle vertex is an atom with a charge, and a triangle
+        // is drawn with connect records; TER delimiters between all triangles...
+
+        ArrayList<Edge> edges = new ArrayList<>();
+        int serial = 0;
+
+        // Generate full connection map
+        for (int i = 0; i < triangles.size(); i++) {
+            Triangle T = triangles.get(i);
+            Vertex v1 = new Vertex(serial, T.getAx(), T.getAy(), T.getAz(), T.getCharge(), false);
+            serial++;
+            Vertex v2 = new Vertex(serial, T.getBx(), T.getBy(), T.getBz(), T.getCharge(), false);
+            serial++;
+            Vertex v3 = new Vertex(serial, T.getCx(), T.getCy(), T.getCz(), T.getCharge(), false);
+            serial++;
+            Edge A = new Edge(v1, v2);
+            edges.add(A);
+            Edge B = new Edge(v2, v3);
+            edges.add(B);
+            Edge C = new Edge(v3, v1);
+            edges.add(C);
+        }
+
+        // Weed out the identical connections
+        System.out.println("We have " + edges.size() + " edges found.");
+        ArrayList<Edge> shortEdgeList = new ArrayList<>();
+
+        for (int i = 0; i < edges.size(); i ++) {
+            // if this edge is not equal to any in the short list then add it
+            boolean isInList = false;
+            for (int j = 0; j < shortEdgeList.size(); j++) {
+                if (edges.get(i).equals(shortEdgeList.get(j))) {
+                    isInList = true;
+                    break;
+                }
+            }
+            if (!isInList) {
+                shortEdgeList.add(edges.get(i));
+            }
+        }
+        System.out.println("We have " + shortEdgeList.size() + " edges in the unique list.");
+
+        // Recalculating vertex colors would go here? Maybe?
+        // Step 1–2: Extract and sort charges
+        List<Double> charges = triangles.stream()
+                .map(Triangle::getCharge)
+                .sorted()
+                .collect(Collectors.toList());
+
+        int n = charges.size();
+        if (n < 10) {
+            System.err.println("Too few triangles for percentile clamping — using raw min/max");
+        }
+
+        // Step 3: Get clamped percentile range
+        double min = charges.get((int) (0.01 * n));
+        double max = charges.get((int) (0.99 * n));
+
+        for (int i = 0; i < shortEdgeList.size(); i++) {
+            if (shortEdgeList.get(i).getV1().getV() > max) {
+                shortEdgeList.get(i).setV1charge(max);
+            }
+            if (shortEdgeList.get(i).getV1().getV() < min){
+                shortEdgeList.get(i).setV1charge(min);
+            }
+            if (shortEdgeList.get(i).getV2().getV() > max) {
+                shortEdgeList.get(i).setV2charge(max);
+            }
+            if (shortEdgeList.get(i).getV2().getV() < min){
+                shortEdgeList.get(i).setV2charge(min);
+            }
+        }
+
+
+
+        // Convert it all into a pdb file...
+        ArrayList<String> pdbLines = new ArrayList<>();
+        ArrayList<String> conectLines = new ArrayList<>();
+
+        PDBAtom fakeAtom = new PDBAtom("ATOM      1 N1   XXX    1      57.279  59.263  90.609  1.00  0.00          N   -0.347");
+
+        for (int i = 0; i < shortEdgeList.size(); i++) {
+            Edge E = shortEdgeList.get(i);
+            Vertex v1 = E.getV1();
+            Vertex v2 = E.getV2();
+
+            fakeAtom.setX(v1.getX());
+            fakeAtom.setY(v1.getY());
+            fakeAtom.setZ(v1.getZ());
+            int s1 = v1.getSerial();
+            fakeAtom.setSerial(s1);
+            fakeAtom.setCharge(v1.getV());
+            fakeAtom.setBFactor(v1.getV());
+            pdbLines.add(fakeAtom.toPDBLine());
+
+            fakeAtom.setX(v2.getX());
+            fakeAtom.setY(v2.getY());
+            fakeAtom.setZ(v2.getZ());
+            int s2 = v2.getSerial();
+            fakeAtom.setSerial(s2);
+            fakeAtom.setCharge(v2.getV());
+            fakeAtom.setBFactor(v2.getV());
+            pdbLines.add(fakeAtom.toPDBLine());
+            pdbLines.add("TER");
+
+            conectLines.add(String.format("CONECT%5d%5d", s1, s2));
+        }
+
+
+        try (FileWriter outputF = new FileWriter(filename)) {
+            for (String line : pdbLines) {
+                outputF.write(line + "\n");
+            }
+
+            for (String conect : conectLines) {
+                outputF.write(conect + "\n");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

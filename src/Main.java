@@ -8,12 +8,14 @@ public class Main {
         // Globals : will need to be moved into a config file eventually
         String pdbFileName             = "C:/tmp/rg108charged.pdb";
         String ligandName              = "RGX";
-        String spherePointsFileName    = "C:/tmp/subdiv_2_triangles.txt";
-        String tclOutputFileName       = "C:/tmp/test1.tcl";
+        String spherePointsFileName    = "C:/tmp/subdiv_3_triangles.txt";
+        String tclOutputSolidFileName  = "C:/tmp/test1.tcl";
+        String tclOutputMeshFilename   = "C:/tmp/testMesh.pdb";
         String ligandAtomFileName      = "C:/tmp/ligand.csv";
         String triangleFilename        = "C:/tmp/triangle.csv";
         String trianglePdbName         = "C:/tmp/trianglesAsPdb.pdb";
         Double cutoff                  = 4.0;
+        double potentialCutoff         = 5.0;
         Boolean parallel               = true;
 
         // DNF below here when working
@@ -62,7 +64,7 @@ public class Main {
         // Trim any triangles that are not completely visible to the ligand
         ArrayList<Triangle> visibleTriangles = new ArrayList<>();
         if (parallel) {
-            visibleTriangles = TriangleMethods.selectVisibleToLigandParallelT(ligandAtoms, cavityTriangles);
+            visibleTriangles = TriangleMethods.selectVisibleToLigandParallel(ligandAtoms, cavityTriangles);
 
         } else {
             visibleTriangles = TriangleMethods.selectVisibleToLigand(ligandAtoms, cavityTriangles);
@@ -72,13 +74,14 @@ public class Main {
         System.out.println("There are " + visibleTriangles.size() + " triangles visible to the ligand.");
 
         // Recolor triangles based on a potential calculation
-        ArrayList<PDBAtom> potentialAtoms = PDBFileMethods.getCavityAtoms(cavityAtoms,receptorAtoms,12.0);
+        ArrayList<PDBAtom> potentialAtoms = PDBFileMethods.getCavityAtoms(cavityAtoms,receptorAtoms,potentialCutoff);
         System.out.println("There are " + potentialAtoms.size() + " atoms that interact with the cavity.");
 
-        //ArrayList<Triangle> rechargedTriangles = TriangleMethods.recalculateCharge(visibleTriangles, potentialAtoms);
+        ArrayList<Triangle> rechargedTriangles = TriangleMethods.recalculateCharge(visibleTriangles, potentialAtoms);
 
         // Output the triangles in a form that VMD can process as a tcl script
-        TriangleMethods.makeTCLFileOfTriangles(visibleTriangles, tclOutputFileName);
+        TriangleMethods.makeTCLFileOfTriangles(rechargedTriangles, tclOutputSolidFileName);
+        TriangleMethods.makeTCLFileOfMesh(rechargedTriangles,tclOutputMeshFilename, potentialAtoms);
 
         // Done
         System.out.println("DONE.");
